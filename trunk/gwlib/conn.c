@@ -402,7 +402,7 @@ static void unlocked_register_pollout(Connection *conn, int onoff)
 }
 
 #ifdef HAVE_LIBSSL
-static int conn_init_client_ssl(Connection *ret, Octstr *certkeyfile)
+static int conn_init_client_ssl(Connection *ret, Octstr *certkeyfile, Octstr *host)
 {
     ret->ssl = SSL_new(global_ssl_context);
 
@@ -423,6 +423,15 @@ static int conn_init_client_ssl(Connection *ret, Octstr *certkeyfile)
                      "certificate from file %s (or failed reading the file)",
                   octstr_get_cstr(certkeyfile));
             return -1;
+        }
+    }
+
+    if (host) {
+        if(SSL_set_tlsext_host_name(ret->ssl, host->data) == 0) {
+             error(errno, "SSL: SSL_set_tlsext_host_name: %.256s", ERR_error_string(ERR_get_error(), NULL));
+             return -1;
+        } else {
+             error("SSL_set_tlsext_host_name: [%s] ok!", host->data);
         }
     }
 
@@ -457,7 +466,7 @@ Connection *conn_open_ssl_nb(Octstr *host, int port, Octstr *certkeyfile,
         return NULL;
     }
     
-    if (conn_init_client_ssl(ret, certkeyfile) == -1) {
+    if (conn_init_client_ssl(ret, certkeyfile, our_host) == -1) {
         conn_destroy(ret);
         return NULL;
     }
@@ -475,7 +484,7 @@ Connection *conn_open_ssl(Octstr *host, int port, Octstr *certkeyfile,
         return NULL;
     }
 
-    if (conn_init_client_ssl(ret, certkeyfile) == -1) {
+    if (conn_init_client_ssl(ret, certkeyfile, our_host) == -1) {
         conn_destroy(ret);
         return NULL;
     }
